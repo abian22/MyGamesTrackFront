@@ -15,49 +15,99 @@ const db = admin.firestore();
 const messaging = admin.messaging();
 
 async function run() {
-  const gamesSnap = await db.collection("games").get();
+  const usersSnap = await db.collection("users").get();
+  const favoriteMap = new Map();
+  for (const userDoc of usersSnap.docs) {
+    const userData = userDoc.data() || {};
+    const favorites = Array.isArray(userData.favorites) ? userData.favorites : [];
+    if (favorites.length === 0) continue;
+    const tokens = Array.isArray(userData.fcmTokens) ?
+      userData.fcmTokens.filter((v) => typeof v === "string" && v.trim().length > 0) :
+      [];
+
+    for (const gameId of favorites) {
+      if (typeof gameId !== "string" || gameId.trim().length === 0) continue;
+      if (!favoriteMap.has(gameId)) favoriteMap.set(gameId, []);
+      favoriteMap.get(gameId).push({
+        uid: userDoc.id,
+        tokens,
+      });
+    }
+  }
+
+  const gameIds = Array.from(favoriteMap.keys());
+  if (gameIds.length === 0) {
+    console.log(JSON.stringify({
+      totalGames: 0,
+      seededGames: 0,
+      dropsDetected: 0,
+      notificationsCreated: 0,
+      pushesSent: 0,
+      message: "No hay juegos en favoritos para procesar",
+    }));
+    return;
+  }
+
   let totalGames = 0;
   let seededGames = 0;
   let dropsDetected = 0;
   let notificationsCreated = 0;
   let pushesSent = 0;
 
-  for (const gameDoc of gamesSnap.docs) {
-    totalGames += 1;
-    const game = gameDoc.data() || {};
-    const gameId = gameDoc.id;
-    const title = String(game.titulo || "Juego");
-    const currentPrice = parsePrice(game.precio);
-    if (currentPrice == null) continue;
+  for (const gameIdChunk of chunkArray(gameIds, 200)) {
+    const gameRefs = gameIdChunk.map((id) => db.collection("games").doc(id));
+    const snapshotRefs = gameIdChunk.map((id) => db.collection("price_snapshots").doc(id));
+    const [gameDocs, snapshotDocs] = await Promise.all([
+      db.getAll(...gameRefs),
+      db.getAll(...snapshotRefs),
+    ]);
 
-    const snapshotRef = db.collection("price_snapshots").doc(gameId);
-    const snapshotDoc = await snapshotRef.get();
-    const previousPrice = snapshotDoc.exists ? parsePrice(snapshotDoc.data().precio) : null;
+    for (let i = 0; i < gameIdChunk.length; i += 1) {
+      const gameId = gameIdChunk[i];
+      const userTargets = favoriteMap.get(gameId) || [];
+      if (userTargets.length === 0) continue;
 
-    // First run: seed baseline only, do not notify.
-    if (previousPrice == null) {
-      seededGames += 1;
+      const gameDoc = gameDocs[i];
+      const snapshotDoc = snapshotDocs[i];
+      if (!gameDoc.exists) continue;
+      totalGames += 1;
+
+      const game = gameDoc.data() || {};
+      const title = String(game.titulo || "Juego");
+      const currentPrice = parsePrice(game.precio);
+      if (currentPrice == null) continue;
+
+      const previousPrice = snapshotDoc.exists ? parsePrice(snapshotDoc.data().precio) : null;
+      const snapshotRef = snapshotRefs[i];
+
+      // First run: seed baseline only, do not notify.
+      if (previousPrice == null) {
+        seededGames += 1;
+        await snapshotRef.set({
+          precio: currentPrice,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, {merge: true});
+        continue;
+      }
+
+      if (currentPrice < previousPrice) {
+        dropsDetected += 1;
+        const result = await notifyUsersForPriceDrop({
+          gameId,
+          title,
+          oldPrice: previousPrice,
+          newPrice: currentPrice,
+          userTargets,
+        });
+        notificationsCreated += result.created;
+        pushesSent += result.pushesSent;
+      }
+
       await snapshotRef.set({
         precio: currentPrice,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       }, {merge: true});
-      continue;
     }
-
-    if (currentPrice < previousPrice) {
-      dropsDetected += 1;
-      notificationsCreated += await notifyUsersForPriceDrop({
-        gameId,
-        title,
-        oldPrice: previousPrice,
-        newPrice: currentPrice,
-      });
-    }
-
-    await snapshotRef.set({
-      precio: currentPrice,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    }, {merge: true});
   }
 
   console.log(JSON.stringify({
@@ -68,16 +118,18 @@ async function run() {
     pushesSent,
   }));
 
-  async function notifyUsersForPriceDrop({gameId, title, oldPrice, newPrice}) {
+  async function notifyUsersForPriceDrop({
+    gameId,
+    title,
+    oldPrice,
+    newPrice,
+    userTargets,
+  }) {
     let created = 0;
-    const usersSnap = await db.collection("users")
-        .where("favorites", "array-contains", gameId)
-        .get();
-    if (usersSnap.empty) return created;
+    let sent = 0;
 
-    for (const userDoc of usersSnap.docs) {
-      const uid = userDoc.id;
-      const userData = userDoc.data() || {};
+    for (const target of userTargets) {
+      const uid = target.uid;
       const notificationId = `${uid}_${gameId}_${toPriceKey(newPrice)}`;
 
       await db.collection("notifications").doc(notificationId).set({
@@ -92,9 +144,7 @@ async function run() {
       }, {merge: true});
       created += 1;
 
-      const tokens = Array.isArray(userData.fcmTokens) ?
-        userData.fcmTokens.filter((v) => typeof v === "string" && v.trim().length > 0) :
-        [];
+      const tokens = target.tokens;
       if (tokens.length > 0) {
         const res = await messaging.sendEachForMulticast({
           tokens: tokens.slice(0, 500),
@@ -110,11 +160,11 @@ async function run() {
             newPrice: newPrice.toString(),
           },
         });
-        pushesSent += res.successCount;
+        sent += res.successCount;
       }
     }
 
-    return created;
+    return {created, pushesSent: sent};
   }
 }
 
@@ -131,6 +181,14 @@ function parsePrice(value) {
 
 function toPriceKey(value) {
   return value.toFixed(2).replace(".", "_");
+}
+
+function chunkArray(items, chunkSize) {
+  const chunks = [];
+  for (let i = 0; i < items.length; i += chunkSize) {
+    chunks.push(items.slice(i, i + chunkSize));
+  }
+  return chunks;
 }
 
 run().then(() => {
