@@ -1,0 +1,57 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Launch Android Emulator",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}\\.vscode\\start_emulator.ps1"
+      ],
+      "options": {
+        "env": {
+          "ANDROID_HOME": "${env:USERPROFILE}\\AppData\\Local\\Android\\Sdk",
+          "ANDROID_SDK_ROOT": "${env:USERPROFILE}\\AppData\\Local\\Android\\Sdk",
+          "ANDROID_AVD_HOME": "${env:USERPROFILE}\\.android\\avd"
+        }
+      },
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Run Flutter on Android (One Click)",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}\\.vscode\\start_and_run_android.ps1"
+      ],
+      "options": {
+        "env": {
+          "ANDROID_HOME": "${env:USERPROFILE}\\AppData\\Local\\Android\\Sdk",
+          "ANDROID_SDK_ROOT": "${env:USERPROFILE}\\AppData\\Local\\Android\\Sdk",
+          "ANDROID_AVD_HOME": "${env:USERPROFILE}\\.android\\avd"
+        }
+      },
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      }
+    }
+  ]
+}

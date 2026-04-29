@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "21876434470",
+    "project_id": "mygamestrack",
+    "storage_bucket": "mygamestrack.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:21876434470:android:39a6e6076c4ad3643b68e7",
+        "android_client_info": {
+          "package_name": "com.example.mygamestrack"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "21876434470-mkruhih1fkaslbpjdqje4dpqum563b5r.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyATz71xUPtN4cT7ziAIq8YCLFt8MEGSePs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "21876434470-mkruhih1fkaslbpjdqje4dpqum563b5r.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "21876434470-41k9b695q8l8ctikr1gs4pt98r4q0a8a.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.a"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
