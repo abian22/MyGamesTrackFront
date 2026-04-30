@@ -1,6 +1,7 @@
 param(
   [string]$AvdId = "Pixel_8",
-  [int]$TimeoutSeconds = 120
+  [int]$TimeoutSeconds = 120,
+  [string]$AppId = "com.example.mygamestrack"
 )
 
 Write-Host "Starting emulator: $AvdId"
@@ -21,6 +22,12 @@ while (([DateTime]::UtcNow - $start).TotalSeconds -lt $TimeoutSeconds) {
   # AVD name (Pixel_8) often differs from runtime id (emulator-5554).
   if ($adbDevices -match "emulator-\d+\s+device" -and $flutterDevices -match "emulator-\d+") {
     Write-Host "Emulator '$AvdId' is connected and visible to Flutter."
+
+    # Prevent INSTALL_FAILED_INSUFFICIENT_STORAGE on repeated runs.
+    Write-Host "Cleaning previous app install and trimming cache..."
+    & $adb uninstall $AppId 2>$null | Out-Null
+    & $adb shell pm trim-caches 1G 2>$null | Out-Null
+
     exit 0
   }
   Start-Sleep -Seconds 2

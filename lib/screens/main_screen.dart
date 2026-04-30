@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import '../constants.dart';
 import '../services/auth_service.dart';
 import '../services/notification_service.dart';
@@ -22,23 +23,27 @@ class _MainScreenState extends State<MainScreen> {
   final AuthService _authService = AuthService();
   final NotificationService _notificationService = NotificationService();
   StreamSubscription<String>? _tokenRefreshSub;
+  StreamSubscription<RemoteMessage>? _foregroundSub;
   int _currentIndex = 0;
 
   @override
   void initState() {
     super.initState();
+    unawaited(_notificationService.initLocalNotifications());
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         unawaited(_notificationService.initForUser(uid));
       });
       _tokenRefreshSub = _notificationService.listenTokenRefresh(uid);
+      _foregroundSub = _notificationService.listenForegroundMessages();
     }
   }
 
   @override
   void dispose() {
     _tokenRefreshSub?.cancel();
+    _foregroundSub?.cancel();
     super.dispose();
   }
 
@@ -118,10 +123,13 @@ class _SwitchNavBar extends StatelessWidget {
                   stream: FirebaseFirestore.instance
                       .collection('notifications')
                       .where('uid', isEqualTo: uid)
-                      .where('leida', isEqualTo: false)
                       .snapshots(),
                   builder: (context, snapshot) {
-                    final count = snapshot.data?.docs.length ?? 0;
+                    final docs = snapshot.data?.docs ?? [];
+                    final count = docs.where((doc) {
+                      final data = doc.data() as Map<String, dynamic>;
+                      return !(data['leida'] == true || data['read'] == true);
+                    }).length;
                     return Badge(
                       isLabelVisible: count > 0,
                       label: Text(

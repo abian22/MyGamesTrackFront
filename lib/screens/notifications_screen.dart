@@ -7,9 +7,14 @@ class NotificationsScreen extends StatelessWidget {
   final String uid;
   const NotificationsScreen({super.key, required this.uid});
 
+  Future<void> _deleteNotification(String docId) async {
+    await FirebaseFirestore.instance.collection('notifications').doc(docId).delete();
+  }
+
   Future<void> _markAsRead(String docId) async {
     await FirebaseFirestore.instance.collection('notifications').doc(docId).update({
       'leida': true,
+      'read': true,
     });
   }
 
@@ -17,8 +22,9 @@ class NotificationsScreen extends StatelessWidget {
     final batch = FirebaseFirestore.instance.batch();
     for (final doc in docs) {
       final data = doc.data() as Map<String, dynamic>;
-      if (data['leida'] == true) continue;
-      batch.update(doc.reference, {'leida': true});
+      final alreadyRead = data['leida'] == true || data['read'] == true;
+      if (alreadyRead) continue;
+      batch.update(doc.reference, {'leida': true, 'read': true});
     }
     await batch.commit();
   }
@@ -80,16 +86,33 @@ class NotificationsScreen extends StatelessWidget {
         stream: FirebaseFirestore.instance
             .collection('notifications')
             .where('uid', isEqualTo: uid)
-            .orderBy('createdAt', descending: true)
             .snapshots(),
         builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return Center(
+              child: Text(
+                'Error cargando alertas: ${snapshot.error}',
+                style: const TextStyle(color: Colors.white54),
+                textAlign: TextAlign.center,
+              ),
+            );
+          }
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(
               child: CircularProgressIndicator(color: kSwitchRed),
             );
           }
 
-          final docs = snapshot.data?.docs ?? [];
+          final docs = List<QueryDocumentSnapshot>.from(snapshot.data?.docs ?? []);
+          docs.sort((a, b) {
+            final dataA = a.data() as Map<String, dynamic>;
+            final dataB = b.data() as Map<String, dynamic>;
+            final tsA = dataA['createdAt'];
+            final tsB = dataB['createdAt'];
+            final dateA = tsA is Timestamp ? tsA.toDate() : DateTime.fromMillisecondsSinceEpoch(0);
+            final dateB = tsB is Timestamp ? tsB.toDate() : DateTime.fromMillisecondsSinceEpoch(0);
+            return dateB.compareTo(dateA);
+          });
           if (docs.isEmpty) {
             return const Center(
               child: Text(
@@ -106,17 +129,15 @@ class NotificationsScreen extends StatelessWidget {
             itemBuilder: (context, index) {
               final doc = docs[index];
               final data = doc.data() as Map<String, dynamic>;
-              final read = data['leida'] == true;
+              final read = data['leida'] == true || data['read'] == true;
               final ts = data['createdAt'];
               final date = ts is Timestamp ? ts.toDate() : null;
+              final imageUrl = (data['gameImage'] ?? data['imagen'] ?? '').toString();
 
               return ListTile(
                 onTap: () => _markAsRead(doc.id),
                 tileColor: read ? Colors.transparent : Colors.white10,
-                leading: Icon(
-                  read ? Icons.notifications_none : Icons.notifications_active,
-                  color: read ? Colors.white54 : kSwitchRed,
-                ),
+                leading: _GameImageThumb(imageUrl: imageUrl, read: read),
                 title: Text(
                   _buildMessage(data),
                   style: TextStyle(
@@ -130,9 +151,17 @@ class NotificationsScreen extends StatelessWidget {
                       : '${date.day}/${date.month}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}',
                   style: const TextStyle(color: Colors.white54),
                 ),
-                trailing: read
-                    ? null
-                    : const Icon(Icons.circle, color: kSwitchRed, size: 10),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (!read) const Icon(Icons.circle, color: kSwitchRed, size: 10),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white54, size: 18),
+                      tooltip: 'Eliminar notificación',
+                      onPressed: () => _deleteNotification(doc.id),
+                    ),
+                  ],
+                ),
               );
             },
           );
@@ -152,6 +181,45 @@ class _Dot extends StatelessWidget {
       width: 10,
       height: 10,
       decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+    );
+  }
+}
+
+class _GameImageThumb extends StatelessWidget {
+  final String imageUrl;
+  final bool read;
+  const _GameImageThumb({required this.imageUrl, required this.read});
+
+  @override
+  Widget build(BuildContext context) {
+    if (imageUrl.isNotEmpty) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(6),
+        child: Image.network(
+          imageUrl,
+          width: 38,
+          height: 38,
+          fit: BoxFit.cover,
+          errorBuilder: (_, error, stackTrace) => _fallback(read),
+        ),
+      );
+    }
+    return _fallback(read);
+  }
+
+  Widget _fallback(bool read) {
+    return Container(
+      width: 38,
+      height: 38,
+      decoration: BoxDecoration(
+        color: Colors.white10,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Icon(
+        read ? Icons.notifications_none : Icons.notifications_active,
+        color: read ? Colors.white54 : kSwitchRed,
+        size: 20,
+      ),
     );
   }
 }
