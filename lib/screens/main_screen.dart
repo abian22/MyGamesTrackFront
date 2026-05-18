@@ -29,7 +29,6 @@ class _MainScreenState extends State<MainScreen> {
   @override
   void initState() {
     super.initState();
-    unawaited(_notificationService.initLocalNotifications());
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {

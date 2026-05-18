@@ -24,18 +24,20 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'GameTracker',
+      title: 'MyGamesTrack',
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark(),
       home: StreamBuilder<User?>(
         stream: FirebaseAuth.instance.authStateChanges(),
         builder: (context, snapshot) {
+          // Firebase comprueba si hay sesión
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Scaffold(
               backgroundColor: kBgDark,
               body: Center(child: CircularProgressIndicator(color: kSwitchRed)),
             );
           }
+          // Si hay usuario logeado va a la pantalla principal
           if (snapshot.hasData) {
             return const MainScreen();
           }

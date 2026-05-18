@@ -29,12 +29,20 @@ class NotificationsScreen extends StatelessWidget {
     await batch.commit();
   }
 
+  String _formatPrice(dynamic value) {
+    if (value == null) return '';
+    if (value is num) return '${value.toStringAsFixed(2)} EUR';
+    final text = value.toString().trim();
+    if (text.isEmpty) return '';
+    return text.contains('EUR') || text.contains('€') ? text : '$text EUR';
+  }
+
   String _buildMessage(Map<String, dynamic> data) {
     final title = (data['gameTitle'] ?? data['titulo'] ?? 'Juego').toString();
-    final oldPrice = data['oldPrice'];
-    final newPrice = data['newPrice'];
-    if (oldPrice != null && newPrice != null) {
-      return '$title bajó de ${oldPrice.toString()} a ${newPrice.toString()}';
+    final oldPrice = _formatPrice(data['oldPrice']);
+    final newPrice = _formatPrice(data['newPrice']);
+    if (oldPrice.isNotEmpty && newPrice.isNotEmpty) {
+      return '$title bajó de $oldPrice a $newPrice';
     }
     return (data['message'] ?? 'Cambio de precio detectado en tus favoritos').toString();
   }

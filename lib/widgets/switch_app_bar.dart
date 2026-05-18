@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../constants.dart';
 
 class SwitchAppBar extends StatelessWidget implements PreferredSizeWidget {
@@ -14,12 +15,27 @@ class SwitchAppBar extends StatelessWidget implements PreferredSizeWidget {
       backgroundColor: kBgDark,
       elevation: 0,
       title: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Container(width: 10, height: 10, decoration: const BoxDecoration(color: kSwitchRed, shape: BoxShape.circle)),
-          const SizedBox(width: 6),
-          Container(width: 10, height: 10, decoration: const BoxDecoration(color: kSwitchBlue, shape: BoxShape.circle)),
-          const SizedBox(width: 10),
-          Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+          Text(
+            title,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Image.asset(
+            kAppIconAsset,
+            width: 32,
+            height: 32,
+            fit: BoxFit.contain,
+            gaplessPlayback: true,
+            filterQuality: FilterQuality.high,
+            errorBuilder: (context, error, stackTrace) =>
+                const SizedBox(width: 32, height: 32),
+          ),
         ],
       ),
     );

@@ -1,5 +1,5 @@
-name: a
-description: "A new Flutter project."
+name: mygames_track
+description: "MyGamesTrack — seguimiento de videojuegos."
 publish_to: 'none'
 version: 0.1.0
 
@@ -13,7 +13,6 @@ dependencies:
   firebase_auth: ^5.1.0
   cloud_firestore: ^5.1.0
   firebase_messaging: ^15.2.10
-  flutter_local_notifications: ^17.2.2
   google_sign_in: ^6.3.0
   font_awesome_flutter: ^10.12.0
 
@@ -21,6 +20,16 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  web:
+    generate: true
+  image_path: assets/branding/app_icon.png
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/branding/app_icon.png

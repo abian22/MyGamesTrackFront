@@ -1,11 +1,20 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:google_sign_in/google_sign_in.dart';
+
+import '../constants.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn(scopes: ['email', 'profile']);
+
+  /// En **Web**, `google_sign_in_web` exige `serverClientId == null`. En **Android/iOS**
+  /// hace falta el cliente OAuth tipo Web para obtener `idToken` y Firebase Auth.
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    scopes: const ['email', 'profile'],
+    serverClientId: kIsWeb ? null : kGoogleWebClientId,
+  );
 
   // Registrar usuario
   Future<User?> registerUser({
@@ -113,7 +122,10 @@ class AuthService {
 
   // Cerrar sesión
   Future<void> signOut() async {
-    await _auth.signOut();
+    await Future.wait([
+      _googleSignIn.signOut(),
+      _auth.signOut(),
+    ]);
   }
 
   // Obtener usuario actual
