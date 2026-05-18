@@ -140,7 +140,3 @@ Las push las envía el backend cuando detecta una rebaja en un juego favorito.
 **Abián Camejo Díaz** — Centro Internacional Politécnico · Mayo 2026
 
 ---
-
-## Licencia
-
-Proyecto académico. Consulta con el autor antes de uso comercial o redistribución.
